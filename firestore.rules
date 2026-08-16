@@ -1,0 +1,97 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function autenticado() {
+      return request.auth != null;
+    }
+
+    function esDueno(negocioId) {
+      return autenticado() &&
+        get(/databases/$(database)/documents/negocios/$(negocioId)).data.uid == request.auth.uid;
+    }
+
+    function esMiembro(negocioId) {
+      return autenticado() &&
+        request.auth.token.negocioId == negocioId;
+    }
+
+    match /usuarios/{userId} {
+      allow read: if autenticado() && request.auth.uid == userId;
+      allow write: if autenticado() && request.auth.uid == userId;
+    }
+
+    match /negocios/{negocioId} {
+      allow read, write: if esDueno(negocioId);
+
+      match /productos/{productoId} {
+        allow read: if esMiembro(negocioId);
+        allow create: if esMiembro(negocioId) && validarProducto(request.resource.data);
+        allow update: if esMiembro(negocioId);
+        allow delete: if esDueno(negocioId);
+      }
+
+      match /historialPrecios/{cambioId} {
+        allow read: if esMiembro(negocioId);
+        allow create: if esMiembro(negocioId);
+        allow update, delete: if false;
+      }
+
+      match /transacciones/{transaccionId} {
+        allow read: if esMiembro(negocioId);
+        allow create: if esMiembro(negocioId) && validarTransaccion(request.resource.data);
+        allow update: if esDueno(negocioId);
+        allow delete: if false;
+      }
+
+      match /costosOperativos/{costoId} {
+        allow read, write: if esMiembro(negocioId);
+      }
+
+      match /clientes/{clienteId} {
+        allow read, write: if esMiembro(negocioId);
+      }
+
+      match /categorias/{categoriaId} {
+        allow read, write: if esMiembro(negocioId);
+      }
+
+      match /configuracionWeb/{docId} {
+        allow read: if true;
+        allow write: if esDueno(negocioId);
+      }
+
+      match /movimientosStock/{movimientoId} {
+        allow read: if esMiembro(negocioId);
+        allow create: if esMiembro(negocioId);
+        allow update, delete: if false;
+      }
+    }
+
+    match /auditorias/{auditoriaId} {
+      allow read: if autenticado();
+      allow create: if autenticado();
+      allow update, delete: if false;
+    }
+  }
+}
+
+function validarProducto(p) {
+  return p.nombre is string
+    && p.nombre.size() >= 3
+    && p.nombre.size() <= 255
+    && p.precioVenta is number
+    && p.precioVenta >= 0.01
+    && p.precioVenta <= 9999999.99
+    && p.costoUnitario is number
+    && p.costoUnitario >= 0.01
+    && (p.imagenes == null || p.imagenes.size() <= 3);
+}
+
+function validarTransaccion(t) {
+  return t.tipo in ['venta', 'gasto', 'compra']
+    && t.montoTotal is number
+    && t.montoTotal > 0
+    && t.estado in ['pendiente', 'completada', 'cancelada'];
+}

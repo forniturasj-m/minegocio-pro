@@ -1,0 +1,19 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primario: #0066CC;
+  --secundario: #FF6B35;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: #1F2937;
+  background-color: #F3F4F6;
+}
+
+.font-numero {
+  font-family: 'Fira Code', monospace;
+  font-variant-numeric: tabular-nums;
+}
